@@ -1855,7 +1855,7 @@ void  PractRand::Tests::Rep16::get_results(std::vector<TestResult> &results) {
 		counts2[v]++;
 	}
 	for (unsigned long i = 0; i < counts2.size(); i++) {
-		std::printf("%d: %d\n", i, counts2[i]);
+		std::printf("%ld: %d\n", i, counts2[i]);
 	}
 }
 
