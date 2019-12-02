@@ -1,0 +1,65 @@
+#!/bin/sh -e
+
+# PractRand configure script
+#
+# Accepts no arguments and only loads some defaults from environment
+# variables. Example usage:
+#   $ CXX=g++ ./configure
+#   $ make -kj$(nproc)
+# Or:
+#   $ CXX=g++ \
+#     CXXFLAGS='-ggdb3 -Og -fsanitize=address -fsanitize=undefined' \
+#     LDFLAGS='-fsanitize=address -fsanitize=undefined' \
+#     ./configure
+#   $ make -kj$(nproc)
+
+CXX=${CXX:-c++}
+CXXFLAGS=${CXXFLAGS:--std=c++14 -O3}
+LDFLAGS=${LDFLAGS:-}
+LDLIBS=${LDLIBS:-}
+
+cat >Makefile <<EOF
+.POSIX:
+.SUFFIXES:
+CXX      = $CXX
+CXXFLAGS = $CXXFLAGS 
+LDFLAGS  = $LDFLAGS
+LDLIBS   = $LDLIBS
+
+.PHONY: clean
+PROCESSOR:=\$(shell uname -m)
+ifeq (\$(PROCESSOR), aarch64)
+OPT_FLAGS =
+else
+OPT_FLAGS = -march=native
+endif
+
+all: RNG_test
+
+clean:
+	rm -f RNG_test \$(obj)
+
+.SUFFIXES: .cpp .o
+.cpp.o:
+	\$(CXX) -c -Iinclude -pthread \$(CXXFLAGS) \$(OPT_FLAGS) -o \$@ \$<
+
+EOF
+
+for cpp in tools/RNG_test.cpp src/*.cpp src/RNGs/*.cpp src/RNGs/other/*.cpp; do
+    o="${cpp%*.cpp}".o
+    $CXX -Iinclude -pthread -MM -MT$o $cpp >>Makefile
+    obj="$(printf '%s \\\n %s' "$obj" $o)"
+    files="$files $o"
+done
+
+cat >>Makefile <<EOF
+obj =$obj
+
+RNG_test: \$(obj) Makefile
+	\$(CXX) -pthread \$(LDFLAGS) -o \$@ \$(obj) \$(LDLIBS)
+
+EOF
+
+for file in $files; do
+    printf '%s: Makefile\n' $file >>Makefile
+done
